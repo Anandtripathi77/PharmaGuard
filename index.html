@@ -6,223 +6,122 @@
   <title>PharmaGuard — Cold Chain Monitor</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
-    /* ── RESET & BASE ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg:        #f5f5f3;
-      --surface:   #ffffff;
-      --border:    rgba(0,0,0,0.10);
-      --border-md: rgba(0,0,0,0.18);
-      --text:      #1a1a18;
-      --text-2:    #6b6b67;
-      --text-3:    #9a9a96;
-      --green:     #1D9E75;
-      --green-bg:  #E1F5EE;
-      --green-txt: #085041;
-      --red:       #E24B4A;
-      --red-bg:    #FCEBEB;
-      --red-txt:   #791F1F;
-      --blue:      #378ADD;
-      --blue-bg:   #E6F1FB;
-      --blue-txt:  #0C447C;
-      --radius:    12px;
-      --radius-sm: 8px;
+      --bg:#f5f5f3;--surface:#ffffff;--border:rgba(0,0,0,0.10);--border-md:rgba(0,0,0,0.18);
+      --text:#1a1a18;--text-2:#6b6b67;--text-3:#9a9a96;
+      --green:#1D9E75;--green-bg:#E1F5EE;--green-txt:#085041;
+      --red:#E24B4A;--red-bg:#FCEBEB;--red-txt:#791F1F;
+      --blue:#378ADD;--amber:#BA7517;--amber-bg:#FAEEDA;--amber-txt:#633806;
+      --radius:12px;--radius-sm:8px;
     }
-
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg:        #1a1a18;
-        --surface:   #242422;
-        --border:    rgba(255,255,255,0.10);
-        --border-md: rgba(255,255,255,0.18);
-        --text:      #e8e8e4;
-        --text-2:    #9a9a96;
-        --text-3:    #6b6b67;
-        --green-bg:  #04342C;
-        --green-txt: #9FE1CB;
-        --red-bg:    #501313;
-        --red-txt:   #F7C1C1;
-        --blue-bg:   #042C53;
-        --blue-txt:  #B5D4F4;
+        --bg:#1a1a18;--surface:#242422;--border:rgba(255,255,255,0.10);--border-md:rgba(255,255,255,0.18);
+        --text:#e8e8e4;--text-2:#9a9a96;--text-3:#6b6b67;
+        --green-bg:#04342C;--green-txt:#9FE1CB;--red-bg:#501313;--red-txt:#F7C1C1;
+        --amber-bg:#412402;--amber-txt:#FAC775;
       }
     }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      font-size: 14px;
-      line-height: 1.5;
-      min-height: 100vh;
-    }
-
-    /* ── LAYOUT ── */
-    .page { max-width: 1100px; margin: 0 auto; padding: 20px 16px 40px; }
-
-    .topbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .logo { font-size: 20px; font-weight: 600; color: var(--text); }
-    .logo span { color: var(--green); }
-
-    .topbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-    .last-updated { font-size: 12px; color: var(--text-3); }
-
-    .grid4 { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-bottom: 14px; }
-    .grid3 { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 14px; }
-    .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; margin-bottom: 14px; }
-
-    @media (max-width: 800px) {
-      .grid4 { grid-template-columns: repeat(2, 1fr); }
-      .grid3 { grid-template-columns: 1fr; }
-      .grid2 { grid-template-columns: 1fr; }
-    }
-    @media (max-width: 480px) {
-      .grid4 { grid-template-columns: 1fr; }
-    }
-
-    /* ── CARDS ── */
-    .card {
-      background: var(--surface);
-      border: 0.5px solid var(--border);
-      border-radius: var(--radius);
-      padding: 14px 16px;
-    }
-
-    .section-title {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-3);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      margin-bottom: 12px;
-    }
-
-    /* ── BADGES ── */
-    .badge {
-      font-size: 12px;
-      font-weight: 600;
-      padding: 4px 12px;
-      border-radius: 20px;
-    }
-    .badge.safe    { background: var(--green-bg); color: var(--green-txt); }
-    .badge.breach  { background: var(--red-bg);   color: var(--red-txt); }
-    .badge.offline { background: var(--bg);        color: var(--text-3); border: 0.5px solid var(--border); }
-
-    .pill { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; display: inline-block; }
-    .pill.active   { background: var(--green-bg); color: var(--green-txt); }
-    .pill.inactive { background: var(--bg);       color: var(--text-3); }
-
-    /* ── METRIC CARDS ── */
-    .metric-label { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
-    .temp-big { font-size: 46px; font-weight: 600; line-height: 1; color: var(--text); }
-    .temp-unit { font-size: 20px; color: var(--text-2); }
-    .metric-value { font-size: 28px; font-weight: 600; color: var(--text); line-height: 1; }
-    .metric-sub { font-size: 12px; color: var(--text-3); margin-top: 4px; }
-
-    /* ── RANGE BAR ── */
-    .range-bar { height: 6px; background: var(--bg); border-radius: 4px; margin: 10px 0 4px; }
-    .range-fill { height: 100%; border-radius: 4px; background: var(--green); transition: width 0.6s ease; }
-    .range-fill.hot  { background: var(--red); }
-    .range-fill.cold { background: var(--blue); }
-    .range-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-3); }
-
-    /* ── STATUS ── */
-    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
-    .status-dot.red    { background: var(--red); }
-    .status-dot.gray   { background: var(--text-3); }
-    .status-dot.pulse  { animation: pulse 1.4s infinite; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.2} }
-
-    /* ── CFG ROWS ── */
-    .cfg-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; border-bottom: 0.5px solid var(--border); font-size: 12px; }
-    .cfg-row:last-child { border-bottom: none; }
-    .cfg-key { color: var(--text-2); }
-    .cfg-val { color: var(--text); font-weight: 500; text-align: right; }
-
-    /* ── CHART ── */
-    .chart-wrap { height: 120px; position: relative; }
-
-    /* ── LOG ── */
-    .log-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 0.5px solid var(--border); font-size: 12px; }
-    .log-row:last-child { border-bottom: none; }
-    .log-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-    .dot-safe   { background: var(--green); }
-    .dot-breach { background: var(--red); }
-    .dot-info   { background: var(--blue); }
-    .log-time { color: var(--text-3); min-width: 62px; font-size: 11px; }
-    .log-msg { color: var(--text); flex: 1; }
-
-    /* ── CALENDAR ── */
-    .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-    .cal-nav {
-      background: none; border: 0.5px solid var(--border); cursor: pointer;
-      color: var(--text-2); font-size: 16px; padding: 2px 8px;
-      border-radius: var(--radius-sm); line-height: 1.4;
-    }
-    .cal-nav:hover { background: var(--bg); }
-    .cal-month { font-size: 13px; font-weight: 600; color: var(--text); }
-    .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; }
-    .cal-day-label { font-size: 10px; color: var(--text-3); text-align: center; padding-bottom: 5px; }
-    .cal-day {
-      aspect-ratio: 1; border-radius: 50%; display: flex; align-items: center;
-      justify-content: center; font-size: 11px; color: var(--text-2); cursor: default;
-    }
-    .cal-day.has-data { font-weight: 600; }
-    .cal-day.safe-day   { background: var(--green-bg); color: var(--green-txt); }
-    .cal-day.breach-day { background: var(--red-bg);   color: var(--red-txt); }
-    .cal-day.today { outline: 2px solid var(--green); outline-offset: 1px; }
-    .cal-day.empty { visibility: hidden; }
-    .cal-legend { display: flex; gap: 14px; margin-top: 10px; flex-wrap: wrap; }
-    .cal-legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-2); }
-    .cal-legend-dot { width: 10px; height: 10px; border-radius: 50%; }
-
-    /* ── VEHICLE ── */
-    .veh-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-    .veh-icon {
-      width: 42px; height: 42px; border-radius: 10px;
-      background: var(--green-bg); display: flex; align-items: center;
-      justify-content: center; flex-shrink: 0;
-    }
-
-    /* ── FETCH BUTTON ── */
-    .fetch-btn {
-      font-size: 13px; padding: 8px 20px; border-radius: var(--radius-sm);
-      border: 0.5px solid var(--border-md); background: var(--surface);
-      color: var(--text-2); cursor: pointer; transition: background 0.15s;
-    }
-    .fetch-btn:hover { background: var(--bg); color: var(--text); }
-    .fetch-btn:active { transform: scale(0.98); }
-
-    /* ── AUTO REFRESH indicator ── */
-    .auto-refresh { font-size: 11px; color: var(--text-3); margin-left: 8px; }
-
-    .footer {
-      text-align: center; margin-top: 28px;
-      font-size: 11px; color: var(--text-3);
-    }
+    body { background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.5;min-height:100vh; }
+    .page { max-width:1100px;margin:0 auto;padding:20px 16px 40px; }
+    .topbar { display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px; }
+    .logo { font-size:20px;font-weight:600; }
+    .logo span { color:var(--green); }
+    .topbar-right { display:flex;align-items:center;gap:10px;flex-wrap:wrap; }
+    .last-updated { font-size:12px;color:var(--text-3); }
+    .grid4 { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px; }
+    .grid3 { display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:14px; }
+    .grid2 { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:14px; }
+    @media (max-width:800px) { .grid4{grid-template-columns:repeat(2,1fr);} .grid3,.grid2{grid-template-columns:1fr;} }
+    @media (max-width:480px) { .grid4{grid-template-columns:1fr;} }
+    .card { background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:14px 16px; }
+    .section-title { font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px; }
+    .badge { font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px; }
+    .badge.safe    { background:var(--green-bg);color:var(--green-txt); }
+    .badge.breach  { background:var(--red-bg);color:var(--red-txt); }
+    .badge.offline { background:var(--amber-bg);color:var(--amber-txt); }
+    .badge.waiting { background:var(--bg);color:var(--text-3);border:0.5px solid var(--border-md); }
+    .pill { font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;display:inline-block; }
+    .pill.active   { background:var(--green-bg);color:var(--green-txt); }
+    .pill.inactive { background:var(--bg);color:var(--text-3); }
+    .metric-label { font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px; }
+    .temp-big  { font-size:46px;font-weight:600;line-height:1;color:var(--text); }
+    .temp-unit { font-size:20px;color:var(--text-2); }
+    .temp-time { font-size:11px;color:var(--text-3);margin-top:5px;min-height:16px; }
+    .metric-value { font-size:28px;font-weight:600;color:var(--text);line-height:1; }
+    .metric-sub { font-size:12px;color:var(--text-3);margin-top:4px; }
+    .range-bar { height:6px;background:var(--bg);border-radius:4px;margin:10px 0 4px; }
+    .range-fill { height:100%;border-radius:4px;background:var(--green);transition:width 0.6s ease; }
+    .range-fill.hot   { background:var(--red); }
+    .range-fill.cold  { background:var(--blue); }
+    .range-fill.stale { background:var(--text-3); }
+    .range-labels { display:flex;justify-content:space-between;font-size:10px;color:var(--text-3); }
+    .status-dot { width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0; }
+    .status-dot.red   { background:var(--red); }
+    .status-dot.amber { background:var(--amber); }
+    .status-dot.gray  { background:var(--text-3); }
+    .status-dot.pulse { animation:pulse 1.4s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.2} }
+    .cfg-row { display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:0.5px solid var(--border);font-size:12px; }
+    .cfg-row:last-child { border-bottom:none; }
+    .cfg-key { color:var(--text-2); }
+    .cfg-val { color:var(--text);font-weight:500;text-align:right; }
+    .chart-wrap { height:120px;position:relative; }
+    .log-row { display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border);font-size:12px; }
+    .log-row:last-child { border-bottom:none; }
+    .log-dot { width:7px;height:7px;border-radius:50%;flex-shrink:0; }
+    .dot-safe   { background:var(--green); }
+    .dot-breach { background:var(--red); }
+    .dot-info   { background:var(--blue); }
+    .dot-warn   { background:var(--amber); }
+    .log-time { color:var(--text-3);min-width:62px;font-size:11px; }
+    .log-msg  { color:var(--text);flex:1; }
+    .offline-banner { display:none;background:var(--amber-bg);border:0.5px solid var(--amber);border-radius:var(--radius-sm);padding:10px 16px;margin-bottom:14px;font-size:13px;color:var(--amber-txt);align-items:center;gap:10px; }
+    .offline-banner.visible { display:flex; }
+    .cal-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:10px; }
+    .cal-nav { background:none;border:0.5px solid var(--border);cursor:pointer;color:var(--text-2);font-size:16px;padding:2px 8px;border-radius:var(--radius-sm);line-height:1.4; }
+    .cal-nav:hover { background:var(--bg); }
+    .cal-month { font-size:13px;font-weight:600;color:var(--text); }
+    .cal-grid { display:grid;grid-template-columns:repeat(7,1fr);gap:3px; }
+    .cal-day-label { font-size:10px;color:var(--text-3);text-align:center;padding-bottom:5px; }
+    .cal-day { aspect-ratio:1;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-2); }
+    .cal-day.has-data { font-weight:600; }
+    .cal-day.safe-day   { background:var(--green-bg);color:var(--green-txt); }
+    .cal-day.breach-day { background:var(--red-bg);color:var(--red-txt); }
+    .cal-day.today { outline:2px solid var(--green);outline-offset:1px; }
+    .cal-day.empty { visibility:hidden; }
+    .cal-legend { display:flex;gap:14px;margin-top:10px;flex-wrap:wrap; }
+    .cal-legend-item { display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-2); }
+    .cal-legend-dot { width:10px;height:10px;border-radius:50%; }
+    .veh-header { display:flex;align-items:center;gap:12px;margin-bottom:12px; }
+    .veh-icon { width:42px;height:42px;border-radius:10px;background:var(--green-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+    .fetch-btn { font-size:13px;padding:8px 20px;border-radius:var(--radius-sm);border:0.5px solid var(--border-md);background:var(--surface);color:var(--text-2);cursor:pointer;transition:background 0.15s; }
+    .fetch-btn:hover { background:var(--bg);color:var(--text); }
+    .fetch-btn:active { transform:scale(0.98); }
+    .footer { text-align:center;margin-top:28px;font-size:11px;color:var(--text-3); }
   </style>
 </head>
 <body>
 <div class="page">
 
-  <!-- ── TOP BAR ── -->
   <div class="topbar">
     <div class="logo">Pharma<span>Guard</span> <span style="font-size:13px;font-weight:400;color:var(--text-3)">Cold Chain Monitor</span></div>
     <div class="topbar-right">
       <span class="last-updated" id="last-updated">Last updated: —</span>
-      <span class="badge safe" id="status-badge">Safe</span>
+      <span class="badge waiting" id="status-badge">Waiting</span>
     </div>
   </div>
 
-  <!-- ── TOP METRIC CARDS ── -->
+  <!-- OFFLINE BANNER -->
+  <div class="offline-banner" id="offline-banner">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+      <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+      <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+    <span id="offline-msg">Device appears offline — last reading was over 60 seconds ago.</span>
+  </div>
+
   <div class="grid4">
     <!-- Temperature -->
     <div class="card">
@@ -231,6 +130,7 @@
         <div class="temp-big" id="temp-display">—</div>
         <div class="temp-unit">°C</div>
       </div>
+      <div class="temp-time" id="temp-time">Reading time: —</div>
       <div class="range-bar"><div class="range-fill" id="range-fill" style="width:0%"></div></div>
       <div class="range-labels"><span>−10°C</span><span>Safe 2–8°C</span><span>40°C</span></div>
     </div>
@@ -249,31 +149,28 @@
 
     <!-- Uploads -->
     <div class="card">
-      <div class="metric-label">Uploads</div>
-      <div class="metric-value" id="upload-count">—</div>
-      <div class="metric-sub">to ThingSpeak</div>
+      <div class="metric-label">Fetches</div>
+      <div class="metric-value" id="upload-count">0</div>
+      <div class="metric-sub">since page loaded</div>
       <div style="margin-top:10px">
-        <div class="cfg-row"><span class="cfg-key">Interval</span><span class="cfg-val">20 sec</span></div>
-        <div class="cfg-row"><span class="cfg-key">Field 1</span><span class="cfg-val">Temperature</span></div>
-        <div class="cfg-row"><span class="cfg-key">Field 2</span><span class="cfg-val">Alert flag</span></div>
+        <div class="cfg-row"><span class="cfg-key">Auto-refresh</span><span class="cfg-val">20 sec</span></div>
+        <div class="cfg-row"><span class="cfg-key">Channel</span><span class="cfg-val">3365330</span></div>
       </div>
     </div>
 
-    <!-- Connection -->
+    <!-- Device status -->
     <div class="card">
-      <div class="metric-label">Connection</div>
+      <div class="metric-label">Device status</div>
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
         <div class="status-dot gray" id="wifi-dot"></div>
         <div style="font-size:15px;font-weight:600" id="wifi-text">—</div>
       </div>
-      <div style="font-size:12px;color:var(--text-3);margin-bottom:10px">POCO X7 Hotspot</div>
-      <div class="cfg-row"><span class="cfg-key">Channel ID</span><span class="cfg-val">3365330</span></div>
-      <div class="cfg-row"><span class="cfg-key">Platform</span><span class="cfg-val">ThingSpeak</span></div>
+      <div style="font-size:12px;color:var(--text-3);margin-bottom:10px" id="last-seen">Last seen: —</div>
       <div class="cfg-row"><span class="cfg-key">Sensor</span><span class="cfg-val">DS18B20</span></div>
+      <div class="cfg-row"><span class="cfg-key">Board</span><span class="cfg-val">ESP32</span></div>
     </div>
   </div>
 
-  <!-- ── CHART + LOG ── -->
   <div class="grid3">
     <div class="card">
       <div class="section-title">Temperature history</div>
@@ -285,9 +182,7 @@
     </div>
   </div>
 
-  <!-- ── CALENDAR + VEHICLE ── -->
   <div class="grid2">
-
     <!-- Calendar -->
     <div class="card">
       <div class="section-title">Daily temperature log</div>
@@ -304,7 +199,7 @@
       </div>
     </div>
 
-    <!-- Vehicle Info -->
+    <!-- Vehicle -->
     <div class="card">
       <div class="section-title">Vehicle information</div>
       <div class="veh-header">
@@ -331,53 +226,57 @@
     </div>
   </div>
 
-  <!-- ── FETCH BUTTON ── -->
   <div style="text-align:center;margin-top:6px">
     <button class="fetch-btn" onclick="fetchData()">Fetch latest from ThingSpeak</button>
-    <span class="auto-refresh" id="auto-label">Auto-refresh: every 20s</span>
+    <div style="font-size:11px;color:var(--text-3);margin-top:6px">Auto-refreshes every 20 seconds</div>
   </div>
 
-  <div class="footer">
-    PharmaGuard v1.0 &nbsp;·&nbsp; ESP32 + DS18B20 &nbsp;·&nbsp; Cold Chain IoT Monitor &nbsp;·&nbsp; College Project
-  </div>
+  <div class="footer">PharmaGuard v1.0 &nbsp;·&nbsp; ESP32 + DS18B20 &nbsp;·&nbsp; Cold Chain IoT Monitor &nbsp;·&nbsp; College Project</div>
 </div>
 
 <script>
-  /* ════════════════════════════════════════
-     USER CONFIG — EDIT THESE
-  ════════════════════════════════════════ */
-  const CHANNEL_ID  = '3365330';
-  const READ_KEY    = 'YOUR_READ_API_KEY'; // Get from ThingSpeak > API Keys tab
-  const TEMP_MIN    = 2.0;
-  const TEMP_MAX    = 8.0;
+  /* ══ USER CONFIG ══ */
+  const CHANNEL_ID = '3365330';
+  const READ_KEY   = 'KU1833KWOUSWDIZS';
+  const TEMP_MIN   = 2.0;
+  const TEMP_MAX   = 8.0;
+  const STALE_SEC  = 60; // seconds without data = device offline
 
-  /* ════════════════════════════════════════
-     VEHICLE DETAILS — EDIT THESE
-  ════════════════════════════════════════ */
+  /* ══ VEHICLE DETAILS ══ */
   const VEHICLE = {
     name:          'Tata Ace Cold Van',
     registration:  'UP80 CX 4421',
     driver:        'Ramesh Kumar',
-    contact:       '+91 98765 43210',
+    contact:       '+91 XXXXXXXXX ',
     route:         'Agra → Delhi (NH-19)',
     cargo:         'Insulin / Vaccines',
     departureDate: '01 May 2026',
     deviceId:      'PG-ESP32-001',
-    status:        'active'   // 'active' or 'inactive'
+    status:        'active'
   };
 
-  /* ════════════════════════════════════════
-     INTERNALS — no need to edit below
-  ════════════════════════════════════════ */
+  /* ══ STATE ══ */
   const calendarData = {};
-  let calYear, calMonth;
-  let chart;
+  let calYear, calMonth, chart;
   let tempHistory = [], timeLabels = [];
-  let uploadCount = 0;
-  let logs = [];
+  let fetchCount = 0, logs = [];
 
+  /* ══ HELPERS ══ */
   function nowTime() {
     return new Date().toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  }
+
+  function formatReadingTime(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-IN', { day:'2-digit', month:'short' }) +
+           ' · ' +
+           d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  }
+
+  function secondsAgo(iso) {
+    if (!iso) return 9999;
+    return Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
   }
 
   function nowDateKey() {
@@ -385,7 +284,7 @@
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   }
 
-  /* ── Vehicle ── */
+  /* ══ VEHICLE ══ */
   function loadVehicle() {
     document.getElementById('veh-name').textContent    = VEHICLE.name;
     document.getElementById('veh-reg').textContent     = VEHICLE.registration;
@@ -396,30 +295,26 @@
     document.getElementById('veh-date').textContent    = VEHICLE.departureDate;
     document.getElementById('veh-device').textContent  = VEHICLE.deviceId;
     const pill = document.getElementById('veh-status-pill');
-    pill.textContent  = VEHICLE.status === 'active' ? 'Active' : 'Inactive';
-    pill.className    = 'pill ' + (VEHICLE.status === 'active' ? 'active' : 'inactive');
+    pill.textContent = VEHICLE.status === 'active' ? 'Active' : 'Inactive';
+    pill.className   = 'pill ' + (VEHICLE.status === 'active' ? 'active' : 'inactive');
   }
 
-  /* ── Calendar ── */
+  /* ══ CALENDAR ══ */
   function renderCalendar() {
-    const months = ['January','February','March','April','May','June',
-                    'July','August','September','October','November','December'];
+    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     document.getElementById('cal-month-label').textContent = months[calMonth] + ' ' + calYear;
     const grid = document.getElementById('cal-grid');
     grid.innerHTML = '';
     ['Su','Mo','Tu','We','Th','Fr','Sa'].forEach(d => {
       const el = document.createElement('div');
-      el.className = 'cal-day-label';
-      el.textContent = d;
+      el.className = 'cal-day-label'; el.textContent = d;
       grid.appendChild(el);
     });
-    const firstDay     = new Date(calYear, calMonth, 1).getDay();
-    const daysInMonth  = new Date(calYear, calMonth + 1, 0).getDate();
-    const today        = new Date();
+    const firstDay    = new Date(calYear, calMonth, 1).getDay();
+    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+    const today       = new Date();
     for (let i = 0; i < firstDay; i++) {
-      const el = document.createElement('div');
-      el.className = 'cal-day empty';
-      grid.appendChild(el);
+      const el = document.createElement('div'); el.className = 'cal-day empty'; grid.appendChild(el);
     }
     for (let d = 1; d <= daysInMonth; d++) {
       const key = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
@@ -429,11 +324,8 @@
       if      (calendarData[key] === 'safe')   cls += ' has-data safe-day';
       else if (calendarData[key] === 'breach') cls += ' has-data breach-day';
       if (isToday) cls += ' today';
-      el.className   = cls;
-      el.textContent = d;
-      el.title = calendarData[key]
-        ? (calendarData[key] === 'safe' ? 'All readings safe' : 'Breach detected')
-        : 'No data yet';
+      el.className = cls; el.textContent = d;
+      el.title = calendarData[key] ? (calendarData[key] === 'safe' ? 'All readings safe' : 'Breach detected') : 'No data yet';
       grid.appendChild(el);
     }
   }
@@ -447,42 +339,29 @@
 
   function markCalendarToday(isBreach) {
     const key = nowDateKey();
-    if (calendarData[key] === 'breach' || isBreach) {
-      calendarData[key] = 'breach';
-    } else {
-      calendarData[key] = 'safe';
-    }
+    calendarData[key] = (calendarData[key] === 'breach' || isBreach) ? 'breach' : 'safe';
     renderCalendar();
   }
 
-  /* ── Chart ── */
+  /* ══ CHART ══ */
   function initChart() {
-    const ctx    = document.getElementById('tempChart').getContext('2d');
+    const ctx = document.getElementById('tempChart').getContext('2d');
     const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const grid   = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)';
-    const tick   = isDark ? '#6b6b67' : '#aaa';
+    const grid = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)';
+    const tick = isDark ? '#6b6b67' : '#aaa';
     chart = new Chart(ctx, {
       type: 'line',
       data: {
         labels: timeLabels,
         datasets: [
-          {
-            data: tempHistory,
-            borderColor: '#1D9E75', borderWidth: 2,
-            pointRadius: 3, pointBackgroundColor: '#1D9E75',
-            tension: 0.4, fill: true,
-            backgroundColor: isDark ? 'rgba(29,158,117,0.08)' : 'rgba(29,158,117,0.06)'
-          },
+          { data: tempHistory, borderColor: '#1D9E75', borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#1D9E75', tension: 0.4, fill: true, backgroundColor: isDark ? 'rgba(29,158,117,0.08)' : 'rgba(29,158,117,0.06)' },
           { data: [], borderColor: 'rgba(226,75,74,0.4)',  borderWidth: 1, borderDash: [5,4], pointRadius: 0, fill: false },
           { data: [], borderColor: 'rgba(55,138,221,0.4)', borderWidth: 1, borderDash: [5,4], pointRadius: 0, fill: false }
         ]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: { label: c => `${c.parsed.y.toFixed(1)} °C` } }
-        },
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.parsed.y.toFixed(1)} °C` } } },
         scales: {
           x: { ticks: { color: tick, font: { size: 10 }, maxTicksLimit: 6 }, grid: { color: grid } },
           y: { ticks: { color: tick, font: { size: 10 }, callback: v => `${v}°C` }, grid: { color: grid }, suggestedMin: -2, suggestedMax: 12 }
@@ -491,100 +370,109 @@
     });
   }
 
-  /* ── UI Update ── */
-  function updateUI(temp, wifi, uploads) {
-    const isBreach = temp < TEMP_MIN || temp > TEMP_MAX;
+  /* ══ MAIN UI UPDATE ══ */
+  function updateUI(temp, createdAt, alrtFlag) {
+    const age      = secondsAgo(createdAt);
+    const isStale  = age > STALE_SEC;
+    const isBreach = !isStale && (temp < TEMP_MIN || temp > TEMP_MAX);
 
-    document.getElementById('temp-display').textContent  = temp.toFixed(1);
-    document.getElementById('last-updated').textContent  = 'Updated: ' + nowTime();
-    document.getElementById('upload-count').textContent  = uploads;
+    document.getElementById('temp-display').textContent = temp.toFixed(1);
+    document.getElementById('temp-time').textContent    = 'Reading: ' + formatReadingTime(createdAt);
+    document.getElementById('last-updated').textContent = 'Dashboard: ' + nowTime();
+    document.getElementById('upload-count').textContent = fetchCount;
 
     const pct  = Math.min(100, Math.max(0, ((temp + 10) / 50) * 100));
     const fill = document.getElementById('range-fill');
     fill.style.width = pct + '%';
-    fill.className   = 'range-fill' + (temp > TEMP_MAX ? ' hot' : temp < TEMP_MIN ? ' cold' : '');
+    fill.className   = 'range-fill' + (isStale ? ' stale' : temp > TEMP_MAX ? ' hot' : temp < TEMP_MIN ? ' cold' : '');
 
-    const badge   = document.getElementById('status-badge');
-    const dot     = document.getElementById('status-dot');
-    const stText  = document.getElementById('status-text');
-    const stSub   = document.getElementById('status-sub');
+    const banner = document.getElementById('offline-banner');
+    if (isStale) {
+      banner.classList.add('visible');
+      document.getElementById('offline-msg').textContent = `Device appears offline — last reading was ${age} seconds ago. Data shown may be outdated.`;
+    } else {
+      banner.classList.remove('visible');
+    }
 
-    if (isBreach) {
+    const badge  = document.getElementById('status-badge');
+    const dot    = document.getElementById('status-dot');
+    const stText = document.getElementById('status-text');
+    const stSub  = document.getElementById('status-sub');
+
+    if (isStale) {
+      badge.className = 'badge offline'; badge.textContent = 'Offline';
+      dot.className = 'status-dot amber';
+      stText.textContent = 'Device offline'; stText.style.color = 'var(--amber-txt)';
+      stSub.textContent  = `No fresh data for ${age} seconds`;
+    } else if (isBreach) {
       badge.className = 'badge breach'; badge.textContent = 'Breach';
-      dot.className   = 'status-dot red pulse';
-      stText.textContent = 'Breach detected';
-      stText.style.color = 'var(--red-txt)';
+      dot.className = 'status-dot red pulse';
+      stText.textContent = 'Breach detected'; stText.style.color = 'var(--red-txt)';
       stSub.textContent  = temp < TEMP_MIN ? 'Too cold — below 2 °C' : 'Too warm — above 8 °C';
     } else {
       badge.className = 'badge safe'; badge.textContent = 'Safe';
-      dot.className   = 'status-dot';
-      stText.textContent = 'In range';
-      stText.style.color = 'var(--green-txt)';
+      dot.className = 'status-dot';
+      stText.textContent = 'In range'; stText.style.color = 'var(--green-txt)';
       stSub.textContent  = 'Temperature within 2–8 °C';
     }
 
     const wDot  = document.getElementById('wifi-dot');
     const wText = document.getElementById('wifi-text');
-    if (wifi) {
-      wDot.className  = 'status-dot';
-      wText.textContent  = 'Connected';
-      wText.style.color  = 'var(--green-txt)';
+    if (isStale) {
+      wDot.className = 'status-dot amber'; wText.textContent = 'Offline'; wText.style.color = 'var(--amber-txt)';
     } else {
-      wDot.className  = 'status-dot red';
-      wText.textContent  = 'Offline';
-      wText.style.color  = 'var(--red-txt)';
+      wDot.className = 'status-dot'; wText.textContent = 'Online'; wText.style.color = 'var(--green-txt)';
     }
+    document.getElementById('last-seen').textContent = 'Last seen: ' + formatReadingTime(createdAt);
 
-    timeLabels.push(nowTime());
-    tempHistory.push(parseFloat(temp.toFixed(1)));
-    if (timeLabels.length > 24) { timeLabels.shift(); tempHistory.shift(); }
-    chart.data.datasets[1].data = Array(timeLabels.length).fill(TEMP_MAX);
-    chart.data.datasets[2].data = Array(timeLabels.length).fill(TEMP_MIN);
-    chart.update('none');
-
-    markCalendarToday(isBreach);
+    if (!isStale) {
+      timeLabels.push(nowTime());
+      tempHistory.push(parseFloat(temp.toFixed(1)));
+      if (timeLabels.length > 24) { timeLabels.shift(); tempHistory.shift(); }
+      chart.data.datasets[1].data = Array(timeLabels.length).fill(TEMP_MAX);
+      chart.data.datasets[2].data = Array(timeLabels.length).fill(TEMP_MIN);
+      chart.update('none');
+      markCalendarToday(isBreach);
+    }
   }
 
-  /* ── Log ── */
+  /* ══ LOG ══ */
   function addLog(dotClass, msg) {
     logs.unshift({ dot: dotClass, time: nowTime(), msg });
     if (logs.length > 7) logs.pop();
-    document.getElementById('log-list').innerHTML = logs.map(l => `
-      <div class="log-row">
-        <div class="log-dot ${l.dot}"></div>
-        <span class="log-time">${l.time}</span>
-        <span class="log-msg">${l.msg}</span>
-      </div>`).join('');
+    document.getElementById('log-list').innerHTML = logs.map(l =>
+      `<div class="log-row"><div class="log-dot ${l.dot}"></div><span class="log-time">${l.time}</span><span class="log-msg">${l.msg}</span></div>`
+    ).join('');
   }
 
-  /* ── ThingSpeak Fetch ── */
+  /* ══ FETCH ══ */
   async function fetchData() {
     try {
-      const url  = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds/last.json?api_key=${READ_KEY}`;
-      const res  = await fetch(url);
+      const res  = await fetch(`https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds/last.json?api_key=${READ_KEY}`);
       const data = await res.json();
       const temp = parseFloat(data.field1);
       const alrt = parseInt(data.field2);
+      const createdAt = data.created_at;
       if (isNaN(temp)) throw new Error('no data');
-      uploadCount++;
-      updateUI(temp, true, uploadCount);
-      addLog(alrt ? 'dot-breach' : 'dot-safe', `Temp: ${temp.toFixed(1)} °C — ${alrt ? 'BREACH' : 'safe'}`);
+      fetchCount++;
+      updateUI(temp, createdAt, alrt);
+      const age = secondsAgo(createdAt);
+      if (age > STALE_SEC) {
+        addLog('dot-warn', `Stale data (${age}s old) — device offline`);
+      } else {
+        addLog(alrt ? 'dot-breach' : 'dot-safe', `Temp: ${temp.toFixed(1)} °C — ${alrt ? 'BREACH' : 'safe'}`);
+      }
     } catch (e) {
-      addLog('dot-info', 'Fetch failed — check Read API Key');
+      addLog('dot-warn', 'Fetch failed — check Read API Key');
     }
   }
 
-  /* ── INIT ── */
-  const now  = new Date();
-  calYear    = now.getFullYear();
-  calMonth   = now.getMonth();
-
-  loadVehicle();
-  initChart();
-  renderCalendar();
+  /* ══ INIT ══ */
+  const now = new Date();
+  calYear = now.getFullYear(); calMonth = now.getMonth();
+  loadVehicle(); initChart(); renderCalendar();
   addLog('dot-info', 'Dashboard ready');
-  addLog('dot-info', 'Add Read API Key and click Fetch');
-
+  addLog('dot-info', 'Add Read API Key to enable live data');
   setInterval(fetchData, 20000);
 </script>
 </body>
