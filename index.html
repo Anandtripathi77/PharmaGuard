@@ -80,13 +80,11 @@
     .log-msg  { color:var(--text);flex:1; }
     .offline-banner { display:none;background:var(--amber-bg);border:0.5px solid var(--amber);border-radius:var(--radius-sm);padding:10px 16px;margin-bottom:14px;font-size:13px;color:var(--amber-txt);align-items:center;gap:10px; }
     .offline-banner.visible { display:flex; }
-    /* Alert sent toast */
     .toast { position:fixed;bottom:24px;right:24px;background:var(--surface);border:0.5px solid var(--border-md);border-radius:var(--radius);padding:12px 18px;font-size:13px;color:var(--text);box-shadow:0 4px 20px rgba(0,0,0,0.12);display:flex;align-items:center;gap:10px;transform:translateY(80px);opacity:0;transition:all 0.3s ease;z-index:999;max-width:320px; }
     .toast.show { transform:translateY(0);opacity:1; }
     .toast.success { border-left:3px solid var(--green); }
     .toast.error   { border-left:3px solid var(--red); }
-    /* Alert card highlight */
-    .alert-card { border:0.5px solid var(--border);transition:border 0.3s; }
+    .alert-card { transition:border 0.3s,box-shadow 0.3s; }
     .alert-card.firing { border:1.5px solid var(--red) !important;box-shadow:0 0 0 3px rgba(226,75,74,0.10); }
     .cal-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:10px; }
     .cal-nav { background:none;border:0.5px solid var(--border);cursor:pointer;color:var(--text-2);font-size:16px;padding:2px 8px;border-radius:var(--radius-sm);line-height:1.4; }
@@ -132,6 +130,7 @@
   </div>
 
   <div class="grid4">
+    <!-- Temperature -->
     <div class="card">
       <div class="metric-label">Temperature</div>
       <div style="display:flex;align-items:baseline;gap:4px">
@@ -143,6 +142,7 @@
       <div class="range-labels"><span>10°C</span><span>Safe 20–35°C</span><span>50°C</span></div>
     </div>
 
+    <!-- Status -->
     <div class="card">
       <div class="metric-label">Status</div>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
@@ -154,6 +154,7 @@
       <div class="cfg-row"><span class="cfg-key">Max threshold</span><span class="cfg-val">35.0 °C</span></div>
     </div>
 
+    <!-- Fetches -->
     <div class="card">
       <div class="metric-label">Fetches</div>
       <div class="metric-value" id="upload-count">0</div>
@@ -164,16 +165,36 @@
       </div>
     </div>
 
-    <!-- Alert card -->
-    <div class="card alert-card" id="alert-card">
-      <div class="metric-label">Email alerts</div>
+    <!-- Device status — wifi-dot and wifi-text live here -->
+    <div class="card">
+      <div class="metric-label">Device status</div>
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-        <div class="status-dot" id="alert-dot"></div>
-        <div style="font-size:15px;font-weight:600" id="alert-status-text">Ready</div>
+        <div class="status-dot gray" id="wifi-dot"></div>
+        <div style="font-size:15px;font-weight:600" id="wifi-text">—</div>
       </div>
-      <div style="font-size:12px;color:var(--text-3);margin-bottom:10px" id="alert-sub">No breach detected</div>
-      <div class="cfg-row"><span class="cfg-key">Cooldown</span><span class="cfg-val">5 min</span></div>
-      <div class="cfg-row"><span class="cfg-key">Sent today</span><span class="cfg-val" id="alert-count">0</span></div>
+      <div style="font-size:12px;color:var(--text-3);margin-bottom:10px" id="last-seen">Last seen: —</div>
+      <div class="cfg-row"><span class="cfg-key">Sensor</span><span class="cfg-val">DS18B20</span></div>
+      <div class="cfg-row"><span class="cfg-key">Board</span><span class="cfg-val">ESP32</span></div>
+    </div>
+  </div>
+
+  <!-- Email alert card — full width row -->
+  <div style="margin-bottom:14px">
+    <div class="card alert-card" id="alert-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="status-dot" id="alert-dot"></div>
+          <div>
+            <div style="font-size:13px;font-weight:600" id="alert-status-text">Email alerts ready</div>
+            <div style="font-size:12px;color:var(--text-3)" id="alert-sub">Watching for breach — will email on detection</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:20px;font-size:12px">
+          <div><span style="color:var(--text-3)">Cooldown:</span> <strong>5 min</strong></div>
+          <div><span style="color:var(--text-3)">Alerts sent:</span> <strong id="alert-count">0</strong></div>
+          <div><span style="color:var(--text-3)">To:</span> <strong id="alert-to"></strong></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -238,15 +259,10 @@
   <div class="footer">PharmaGuard v1.0 &nbsp;·&nbsp; ESP32 + DS18B20 &nbsp;·&nbsp; Cold Chain IoT Monitor &nbsp;·&nbsp; College Project</div>
 </div>
 
-<!-- Toast notification -->
-<div class="toast" id="toast">
-  <span id="toast-msg">Alert sent!</span>
-</div>
+<div class="toast" id="toast"><span id="toast-msg"></span></div>
 
 <script>
-  /* ════════════════════════════════════════
-     USER CONFIG
-  ════════════════════════════════════════ */
+  /* ══ USER CONFIG ══ */
   const CHANNEL_ID  = '3365330';
   const READ_KEY    = 'KU1833KWOUSWDIZS';
   const TEMP_MIN    = 20.0;
@@ -254,16 +270,13 @@
   const STALE_SEC   = 60;
   const FETCH_EVERY = 15000;
 
-  /* ════════════════════════════════════════
-     EMAILJS CONFIG */
-  const EMAILJS_PUBLIC_KEY  = 'xReY5KidEsGkSqOb9';       // Account > Public Key
-  const EMAILJS_SERVICE_ID  = 'service_t20xggi';       // e.g. service_abc123
-  const EMAILJS_TEMPLATE_ID = 'template_lgzj3fp';      // e.g. template_xyz789
-  const ALERT_TO_EMAIL      = 'anand776443@gmail.com';        // who receives the alert
+  /* ══ EMAILJS CONFIG ══ */
+  const EMAILJS_PUBLIC_KEY  = 'xReY5KidEsGkSqOb9';
+  const EMAILJS_SERVICE_ID  = 'service_t20xggi';
+  const EMAILJS_TEMPLATE_ID = 'template_lgzj3fp';
+  const ALERT_TO_EMAIL      = 'anand776443@gmail.com';
 
-  /* ════════════════════════════════════════
-     VEHICLE DETAILS
-  ════════════════════════════════════════ */
+  /* ══ VEHICLE ══ */
   const VEHICLE = {
     name:          'Tata Ace Cold Van',
     registration:  'UP80 CX 4421',
@@ -276,67 +289,61 @@
     status:        'active'
   };
 
-  /* ════════════════════════════════════════
-     STATE
-  ════════════════════════════════════════ */
+  /* ══ STATE ══ */
   const calendarData = {};
   let calYear, calMonth, chart;
   let tempHistory = [], timeLabels = [];
   let fetchCount = 0, logs = [];
   let countdownVal = 15;
   let countdownTimer, fetchTimer;
-
-  // Email alert cooldown — prevents spam (one email per 5 minutes max)
   const ALERT_COOLDOWN_MS = 5 * 60 * 1000;
   let lastAlertSent = 0;
   let alertCount = 0;
   let lastBreachState = false;
 
-  // Init EmailJS
-  emailjs.init(EMAILJS_PUBLIC_KEY);
+  /* ══ EMAILJS INIT ══ */
+  try {
+    emailjs.init(EMAILJS_PUBLIC_KEY);
+    console.log('EmailJS initialized OK');
+  } catch(e) {
+    console.error('EmailJS init failed:', e);
+  }
 
-  /* ════════════════════════════════════════
-     HELPERS
-  ════════════════════════════════════════ */
+  /* ══ HELPERS ══ */
   function nowTime() {
     return new Date().toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
   }
-
   function formatReadingTime(iso) {
     if (!iso) return '—';
     const d = new Date(iso);
-    return d.toLocaleDateString('en-IN', { day:'2-digit', month:'short' }) +
-           ' · ' +
+    return d.toLocaleDateString('en-IN', { day:'2-digit', month:'short' }) + ' · ' +
            d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
   }
-
   function secondsAgo(iso) {
     if (!iso) return 9999;
     return Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
   }
-
   function nowDateKey() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   }
 
-  /* ════════════════════════════════════════
-     TOAST
-  ════════════════════════════════════════ */
-  function showToast(msg, type = 'success') {
+  /* ══ TOAST ══ */
+  function showToast(msg, type='success') {
     const t = document.getElementById('toast');
     document.getElementById('toast-msg').textContent = msg;
     t.className = `toast ${type} show`;
-    setTimeout(() => { t.className = `toast ${type}`; }, 4000);
+    setTimeout(() => { t.className = `toast ${type}`; }, 5000);
   }
 
-  /* ════════════════════════════════════════
-     EMAIL ALERT
-  ════════════════════════════════════════ */
+  /* ══ EMAIL ALERT ══ — completely rewritten, isolated try/catch ══ */
   async function sendBreachAlert(temp) {
+    console.log('sendBreachAlert called, temp =', temp);
+
     const now = Date.now();
     if (now - lastAlertSent < ALERT_COOLDOWN_MS) {
       const remaining = Math.ceil((ALERT_COOLDOWN_MS - (now - lastAlertSent)) / 60000);
+      console.log('Cooldown active, remaining:', remaining, 'min');
       addLog('dot-warn', `Alert cooldown — next email in ~${remaining} min`);
       return;
     }
@@ -345,7 +352,7 @@
       ? `Below minimum (${TEMP_MIN} °C)`
       : `Above maximum (${TEMP_MAX} °C)`;
 
-    const templateParams = {
+    const params = {
       to_email:     ALERT_TO_EMAIL,
       vehicle_name: VEHICLE.name,
       vehicle_reg:  VEHICLE.registration,
@@ -358,39 +365,42 @@
       device_id:    VEHICLE.deviceId
     };
 
+    console.log('Sending email with params:', params);
+
     try {
-      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams);
+      const result = await emailjs.send(
+        EMAILJS_SERVICE_ID,
+        EMAILJS_TEMPLATE_ID,
+        params
+      );
+      console.log('EmailJS success:', result);
       lastAlertSent = Date.now();
       alertCount++;
       document.getElementById('alert-count').textContent = alertCount;
-      document.getElementById('alert-status-text').textContent = 'Alert sent!';
-      document.getElementById('alert-sub').textContent = 'Email sent at ' + nowTime();
+      document.getElementById('alert-status-text').textContent = '✓ Alert email sent!';
+      document.getElementById('alert-sub').textContent = 'Last sent: ' + nowTime();
       document.getElementById('alert-dot').className = 'status-dot';
-      showToast('📧 Breach alert email sent!', 'success');
-      addLog('dot-breach', `Alert email sent — ${temp.toFixed(1)} °C breach`);
-    } catch (err) {
-      showToast('Email failed — check EmailJS config', 'error');
-      addLog('dot-warn', 'Email alert failed — check config');
+      showToast('📧 Breach alert sent to ' + ALERT_TO_EMAIL, 'success');
+      addLog('dot-breach', `Alert email sent — ${temp.toFixed(1)} °C`);
+    } catch(err) {
+      console.error('EmailJS error:', err);
+      showToast('Email failed: ' + JSON.stringify(err), 'error');
+      addLog('dot-warn', 'Email failed: ' + (err.text || err.message || JSON.stringify(err)));
     }
   }
 
-  /* ════════════════════════════════════════
-     COUNTDOWN
-  ════════════════════════════════════════ */
+  /* ══ COUNTDOWN ══ */
   function startCountdown() {
     clearInterval(countdownTimer);
     countdownVal = FETCH_EVERY / 1000;
-    document.getElementById('countdown').textContent = `Next auto-fetch in ${countdownVal}s`;
     countdownTimer = setInterval(() => {
       countdownVal--;
-      if (countdownVal <= 0) countdownVal = FETCH_EVERY / 1000;
+      if (countdownVal < 0) countdownVal = FETCH_EVERY / 1000;
       document.getElementById('countdown').textContent = `Next auto-fetch in ${countdownVal}s`;
     }, 1000);
   }
 
-  /* ════════════════════════════════════════
-     VEHICLE
-  ════════════════════════════════════════ */
+  /* ══ VEHICLE LOAD ══ */
   function loadVehicle() {
     document.getElementById('veh-name').textContent    = VEHICLE.name;
     document.getElementById('veh-reg').textContent     = VEHICLE.registration;
@@ -400,14 +410,13 @@
     document.getElementById('veh-cargo').textContent   = VEHICLE.cargo;
     document.getElementById('veh-date').textContent    = VEHICLE.departureDate;
     document.getElementById('veh-device').textContent  = VEHICLE.deviceId;
+    document.getElementById('alert-to').textContent    = ALERT_TO_EMAIL;
     const pill = document.getElementById('veh-status-pill');
     pill.textContent = VEHICLE.status === 'active' ? 'Active' : 'Inactive';
     pill.className   = 'pill ' + (VEHICLE.status === 'active' ? 'active' : 'inactive');
   }
 
-  /* ════════════════════════════════════════
-     CALENDAR
-  ════════════════════════════════════════ */
+  /* ══ CALENDAR ══ */
   function renderCalendar() {
     const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     document.getElementById('cal-month-label').textContent = months[calMonth] + ' ' + calYear;
@@ -415,8 +424,7 @@
     grid.innerHTML = '';
     ['Su','Mo','Tu','We','Th','Fr','Sa'].forEach(d => {
       const el = document.createElement('div');
-      el.className = 'cal-day-label'; el.textContent = d;
-      grid.appendChild(el);
+      el.className = 'cal-day-label'; el.textContent = d; grid.appendChild(el);
     });
     const firstDay    = new Date(calYear, calMonth, 1).getDay();
     const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
@@ -426,14 +434,14 @@
     }
     for (let d = 1; d <= daysInMonth; d++) {
       const key = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      const isToday = d === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear();
+      const isToday = d===today.getDate() && calMonth===today.getMonth() && calYear===today.getFullYear();
       const el = document.createElement('div');
       let cls = 'cal-day';
-      if      (calendarData[key] === 'safe')   cls += ' has-data safe-day';
-      else if (calendarData[key] === 'breach') cls += ' has-data breach-day';
+      if      (calendarData[key]==='safe')   cls += ' has-data safe-day';
+      else if (calendarData[key]==='breach') cls += ' has-data breach-day';
       if (isToday) cls += ' today';
       el.className = cls; el.textContent = d;
-      el.title = calendarData[key] ? (calendarData[key] === 'safe' ? 'All readings safe' : 'Breach detected') : 'No data yet';
+      el.title = calendarData[key] ? (calendarData[key]==='safe' ? 'All readings safe' : 'Breach detected') : 'No data yet';
       grid.appendChild(el);
     }
   }
@@ -447,45 +455,41 @@
 
   function markCalendarToday(isBreach) {
     const key = nowDateKey();
-    calendarData[key] = (calendarData[key] === 'breach' || isBreach) ? 'breach' : 'safe';
+    calendarData[key] = (calendarData[key]==='breach' || isBreach) ? 'breach' : 'safe';
     renderCalendar();
   }
 
-  /* ════════════════════════════════════════
-     CHART
-  ════════════════════════════════════════ */
+  /* ══ CHART ══ */
   function initChart() {
     const ctx = document.getElementById('tempChart').getContext('2d');
     const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const gridColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)';
-    const tick = isDark ? '#6b6b67' : '#aaa';
+    const gc = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)';
+    const tk = isDark ? '#6b6b67' : '#aaa';
     chart = new Chart(ctx, {
       type: 'line',
       data: {
         labels: timeLabels,
         datasets: [
-          { data: tempHistory, borderColor: '#1D9E75', borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#1D9E75', tension: 0.4, fill: true, backgroundColor: isDark ? 'rgba(29,158,117,0.08)' : 'rgba(29,158,117,0.06)' },
-          { data: [], borderColor: 'rgba(226,75,74,0.4)',  borderWidth: 1, borderDash: [5,4], pointRadius: 0, fill: false },
-          { data: [], borderColor: 'rgba(55,138,221,0.4)', borderWidth: 1, borderDash: [5,4], pointRadius: 0, fill: false }
+          { data: tempHistory, borderColor:'#1D9E75', borderWidth:2, pointRadius:3, pointBackgroundColor:'#1D9E75', tension:0.4, fill:true, backgroundColor: isDark?'rgba(29,158,117,0.08)':'rgba(29,158,117,0.06)' },
+          { data:[], borderColor:'rgba(226,75,74,0.4)',  borderWidth:1, borderDash:[5,4], pointRadius:0, fill:false },
+          { data:[], borderColor:'rgba(55,138,221,0.4)', borderWidth:1, borderDash:[5,4], pointRadius:0, fill:false }
         ]
       },
       options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.parsed.y.toFixed(1)} °C` } } },
-        scales: {
-          x: { ticks: { color: tick, font: { size: 10 }, maxTicksLimit: 6 }, grid: { color: gridColor } },
-          y: { ticks: { color: tick, font: { size: 10 }, callback: v => `${v}°C` }, grid: { color: gridColor }, suggestedMin: 15, suggestedMax: 42 }
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>`${c.parsed.y.toFixed(1)} °C`}} },
+        scales:{
+          x:{ ticks:{color:tk,font:{size:10},maxTicksLimit:6}, grid:{color:gc} },
+          y:{ ticks:{color:tk,font:{size:10},callback:v=>`${v}°C`}, grid:{color:gc}, suggestedMin:15, suggestedMax:42 }
         }
       }
     });
   }
 
-  /* ════════════════════════════════════════
-     MAIN UI UPDATE
-  ════════════════════════════════════════ */
+  /* ══ MAIN UI UPDATE ══ */
   function updateUI(temp, createdAt, alrtFlag) {
-    const age      = secondsAgo(createdAt);
-    const isStale  = age > STALE_SEC;
+    const age     = secondsAgo(createdAt);
+    const isStale = age > STALE_SEC;
     const isBreach = !isStale && (temp < TEMP_MIN || temp > TEMP_MAX);
 
     document.getElementById('temp-display').textContent = temp.toFixed(1);
@@ -496,12 +500,12 @@
     const pct  = Math.min(100, Math.max(0, ((temp - 10) / 40) * 100));
     const fill = document.getElementById('range-fill');
     fill.style.width = pct + '%';
-    fill.className   = 'range-fill' + (isStale ? ' stale' : temp > TEMP_MAX ? ' hot' : temp < TEMP_MIN ? ' cold' : '');
+    fill.className   = 'range-fill' + (isStale?' stale':temp>TEMP_MAX?' hot':temp<TEMP_MIN?' cold':'');
 
     const banner = document.getElementById('offline-banner');
     if (isStale) {
       banner.classList.add('visible');
-      document.getElementById('offline-msg').textContent = `Device appears offline — last reading was ${age} seconds ago. Data shown may be outdated.`;
+      document.getElementById('offline-msg').textContent = `Device appears offline — last reading was ${age} seconds ago.`;
     } else {
       banner.classList.remove('visible');
     }
@@ -512,47 +516,51 @@
     const stSub  = document.getElementById('status-sub');
 
     if (isStale) {
-      badge.className = 'badge offline'; badge.textContent = 'Offline';
-      dot.className = 'status-dot amber';
-      stText.textContent = 'Device offline'; stText.style.color = 'var(--amber-txt)';
-      stSub.textContent  = `No fresh data for ${age} seconds`;
+      badge.className='badge offline'; badge.textContent='Offline';
+      dot.className='status-dot amber';
+      stText.textContent='Device offline'; stText.style.color='var(--amber-txt)';
+      stSub.textContent=`No fresh data for ${age} seconds`;
     } else if (isBreach) {
-      badge.className = 'badge breach'; badge.textContent = 'Breach';
-      dot.className = 'status-dot red pulse';
-      stText.textContent = 'Breach detected'; stText.style.color = 'var(--red-txt)';
-      stSub.textContent  = temp < TEMP_MIN ? 'Too cold — below 20 °C' : 'Too warm — above 35 °C';
+      badge.className='badge breach'; badge.textContent='Breach';
+      dot.className='status-dot red pulse';
+      stText.textContent='Breach detected'; stText.style.color='var(--red-txt)';
+      stSub.textContent=temp<TEMP_MIN?'Too cold — below 20 °C':'Too warm — above 35 °C';
     } else {
-      badge.className = 'badge safe'; badge.textContent = 'Safe';
-      dot.className = 'status-dot';
-      stText.textContent = 'In range'; stText.style.color = 'var(--green-txt)';
-      stSub.textContent  = 'Temperature within 20–35 °C';
+      badge.className='badge safe'; badge.textContent='Safe';
+      dot.className='status-dot';
+      stText.textContent='In range'; stText.style.color='var(--green-txt)';
+      stSub.textContent='Temperature within 20–35 °C';
     }
 
-    const wDot  = document.getElementById('wifi-dot');  // reuse from device card if needed
+    const wDot  = document.getElementById('wifi-dot');
     const wText = document.getElementById('wifi-text');
     if (isStale) {
-      wDot.className = 'status-dot amber'; wText.textContent = 'Offline'; wText.style.color = 'var(--amber-txt)';
+      wDot.className='status-dot amber'; wText.textContent='Offline'; wText.style.color='var(--amber-txt)';
     } else {
-      wDot.className = 'status-dot'; wText.textContent = 'Online'; wText.style.color = 'var(--green-txt)';
+      wDot.className='status-dot'; wText.textContent='Online'; wText.style.color='var(--green-txt)';
     }
     document.getElementById('last-seen').textContent = 'Last seen: ' + formatReadingTime(createdAt);
 
-    // Alert card highlight
+    /* Alert card */
     const alertCard = document.getElementById('alert-card');
     if (isBreach) {
       alertCard.classList.add('firing');
       document.getElementById('alert-dot').className = 'status-dot red pulse';
-      document.getElementById('alert-status-text').textContent = 'Breach!';
-      document.getElementById('alert-sub').textContent = `${temp.toFixed(1)} °C — sending alert...`;
+      document.getElementById('alert-status-text').textContent = '⚠ Breach detected — sending alert';
+      document.getElementById('alert-sub').textContent = `${temp.toFixed(1)} °C at ${nowTime()}`;
     } else if (!isStale) {
       alertCard.classList.remove('firing');
-      document.getElementById('alert-dot').className = 'status-dot';
-      document.getElementById('alert-status-text').textContent = 'Ready';
-      document.getElementById('alert-sub').textContent = 'No breach detected';
+      if (alertCount === 0) {
+        document.getElementById('alert-dot').className = 'status-dot';
+        document.getElementById('alert-status-text').textContent = 'Email alerts ready';
+        document.getElementById('alert-sub').textContent = 'Watching for breach — will email on detection';
+      }
     }
 
-    // Send email alert on NEW breach (not on every fetch)
+    /* ── TRIGGER EMAIL — only on fresh breach start ── */
+    console.log('isBreach:', isBreach, '| lastBreachState:', lastBreachState, '| isStale:', isStale);
     if (isBreach && !lastBreachState) {
+      console.log('NEW breach detected — calling sendBreachAlert');
       sendBreachAlert(temp);
     }
     lastBreachState = isBreach;
@@ -568,20 +576,16 @@
     }
   }
 
-  /* ════════════════════════════════════════
-     LOG
-  ════════════════════════════════════════ */
+  /* ══ LOG ══ */
   function addLog(dotClass, msg) {
-    logs.unshift({ dot: dotClass, time: nowTime(), msg });
+    logs.unshift({ dot:dotClass, time:nowTime(), msg });
     if (logs.length > 7) logs.pop();
     document.getElementById('log-list').innerHTML = logs.map(l =>
       `<div class="log-row"><div class="log-dot ${l.dot}"></div><span class="log-time">${l.time}</span><span class="log-msg">${l.msg}</span></div>`
     ).join('');
   }
 
-  /* ════════════════════════════════════════
-     FETCH
-  ════════════════════════════════════════ */
+  /* ══ FETCH ══ */
   async function fetchData() {
     try {
       const res  = await fetch(`https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds/last.json?api_key=${READ_KEY}`);
@@ -596,9 +600,10 @@
       if (age > STALE_SEC) {
         addLog('dot-warn', `Stale data (${age}s old) — device offline`);
       } else {
-        addLog(alrt ? 'dot-breach' : 'dot-safe', `Temp: ${temp.toFixed(1)} °C — ${alrt ? 'BREACH' : 'safe'}`);
+        addLog(alrt?'dot-breach':'dot-safe', `Temp: ${temp.toFixed(1)} °C — ${alrt?'BREACH':'safe'}`);
       }
-    } catch (e) {
+    } catch(e) {
+      console.error('Fetch error:', e);
       addLog('dot-warn', 'Fetch failed — check connection');
     }
   }
@@ -610,9 +615,7 @@
     fetchTimer = setInterval(() => { fetchData(); startCountdown(); }, FETCH_EVERY);
   }
 
-  /* ════════════════════════════════════════
-     INIT
-  ════════════════════════════════════════ */
+  /* ══ INIT ══ */
   const now = new Date();
   calYear = now.getFullYear(); calMonth = now.getMonth();
   loadVehicle(); initChart(); renderCalendar();
